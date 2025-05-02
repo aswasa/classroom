@@ -1,7 +1,6 @@
 from database import get_db
 from database.models import Teacher, User, Course, Homework, Mark
 from typing import Optional
-from auth_config import security
 
 
 def register(username, phone_number, email, password):
@@ -11,6 +10,7 @@ def register(username, phone_number, email, password):
                             email=email, password=password)
             db.add(new_teacher)
             db.commit()
+            db.refresh(new_teacher)
             return new_teacher.id
         except Exception as e:
             db.rollback()
@@ -21,14 +21,13 @@ def login(email, password):
     with next(get_db()) as db:
         user = db.query(Teacher).filter_by(email=email).first()
         if user and user.password==password:
-            token = security.create_access_token(uid=str(user.id))
-            return token
+            return True
         else:
             return False
 
-def delete_account(teacher_id, password):
+def delete_account(email, password):
     with next(get_db()) as db:
-        user = db.query(Teacher).filter_by(id=teacher_id).first()
+        user = db.query(Teacher).filter_by(email=email).first()
         if user and user.password==password:
             db.delete(user)
             db.commit()
@@ -55,6 +54,7 @@ def create_course(name, description, teacher_id):
         new_course = Course(name=name, description=description, teacher_id=teacher_id)
         db.add(new_course)
         db.commit()
+        db.refresh(new_course)
         return new_course.id
 
 
@@ -77,6 +77,7 @@ def add_hw(teacher_id, title, text, deadline, max_mark):
         new_hw = Homework(teacher_id=teacher_id, title=title, text=text, deadline=deadline, max_mark=max_mark)
         db.add(new_hw)
         db.commit()
+        db.refresh(new_hw)
         return new_hw.id
 
 def delete_hw(title, teacher_id):
@@ -89,9 +90,9 @@ def delete_hw(title, teacher_id):
             return True
         return False
 
-def redact_hw(title, new_text, new_deadline, teacher_id):
+def redact_hw(title, new_text, new_deadline):
     with next(get_db()) as db:
-        hw = db.query(Homework).filter_by(title=title, teacher_id=teacher_id).first()
+        hw = db.query(Homework).filter_by(title=title).first()
         if not hw:
             return False
         hw.text = new_text
@@ -112,6 +113,7 @@ def check_hw(hw_id, mark, user_id, teacher_id, feedback: Optional[str] = None):
                             user_id=user_id, hw_id=hw_id, teacher_id=teacher_id)
             db.add(new_mark)
             db.commit()
+            db.refresh(new_mark)
             return new_mark.id
 
 def profile_teacher(teacher_id):
